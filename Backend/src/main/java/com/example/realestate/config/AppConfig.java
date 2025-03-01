@@ -1,7 +1,9 @@
 package com.example.realestate.config;
 
-import java.util.Arrays;
-
+import com.example.realestate.security.JwtFilter;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,10 +17,16 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import com.example.realestate.security.JwtFilter; // Import your JwtFilter
+import java.util.Arrays;
 
 @Configuration
 public class AppConfig implements WebMvcConfigurer {
+
+    @Value("rzp_test_rFwjZbQ2DbFLZt") // Inject Razorpay key ID from application.properties
+    private String razorpayKeyId;
+
+    @Value("e2qjKscFgOMyNTbVLpmVrieZ") // Inject Razorpay key secret from application.properties
+    private String razorpayKeySecret;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter) throws Exception {
@@ -58,6 +66,12 @@ public class AppConfig implements WebMvcConfigurer {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(); // Use BCrypt for password encoding
+    }
+
+    @Bean
+    public RazorpayClient razorpayClient() throws RazorpayException {
+        // Initialize RazorpayClient with key ID and secret
+        return new RazorpayClient(razorpayKeyId, razorpayKeySecret);
     }
 
     // Static file configuration to serve files from the upload directory

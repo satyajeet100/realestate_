@@ -118,6 +118,74 @@ const PropertyDetails = () => {
     }
   };
 
+  const handlePayment = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("User not authenticated. Please log in.");
+
+      // Fetch the property price
+      const amount = property.discountedPrice || property.price;
+
+      // Create a payment order
+      const response = await fetch("http://localhost:9090/api/payment/create-order", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ amount: amount, userId: property.seller.id, propertyId: id }),
+      });
+
+      if (!response.ok) throw new Error("Failed to create payment order.");
+
+      const order = await response.json();
+
+      // Open Razorpay payment modal
+      const options = {
+        key: "your_razorpay_key_id", // Replace with your Razorpay key ID
+        amount: order.amount,
+        currency: order.currency,
+        name: "Real Estate Platform",
+        description: `Payment for property: ${property.propertyTitle}`,
+        order_id: order.id,
+        handler: async function (response) {
+          try {
+            // Send payment details to your backend for verification
+            const callbackResponse = await fetch("http://localhost:9090/api/payment/callback", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(response),
+            });
+
+            if (!callbackResponse.ok) throw new Error("Failed to process payment callback.");
+
+            alert(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+          } catch (error) {
+            console.error("Payment callback error:", error);
+            setError("Failed to process payment callback.");
+          }
+        },
+        prefill: {
+          name: property.seller.name,
+          email: property.seller.email,
+          contact: "9999999999", // Replace with actual contact if available
+        },
+        theme: {
+          color: "#3399cc",
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Payment error:", error);
+      setError(error.message);
+    }
+  };
+
   if (loading) return <CircularProgress sx={{ display: "block", margin: "20% auto" }} />;
   if (error) return <Typography color="error">{error}</Typography>;
   if (!property) return <Typography>No property details available.</Typography>;
@@ -245,6 +313,19 @@ const PropertyDetails = () => {
             <Typography variant="body2">
               <strong>Email:</strong> {property.seller.email}
             </Typography>
+          </Box>
+
+          {/* Buy Now Button */}
+          <Box sx={{ mt: 3 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handlePayment}
+              fullWidth
+              size="large"
+            >
+              Buy Now
+            </Button>
           </Box>
         </CardContent>
       </Card>

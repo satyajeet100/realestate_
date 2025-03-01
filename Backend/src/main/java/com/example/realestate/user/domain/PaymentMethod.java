@@ -1,11 +1,10 @@
 package com.example.realestate.user.domain;
 
 public enum PaymentMethod {
-
-	CREDIT_CARD,
+    CREDIT_CARD,
     DEBIT_CARD,
     NET_BANKING,
     UPI,
     PAYPAL,
-    GOOGLE_PAY,
+    GOOGLE_PAY
 }

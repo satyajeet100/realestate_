@@ -1,8 +1,7 @@
 package com.example.realestate.user.domain;
 
 public enum PaymentStatus {
-
-	PENDING,
+    PENDING,
     PROCESSING,
     COMPLETED,
     FAILED
