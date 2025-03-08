@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Container,
-  Typography,
-  CircularProgress,
-  Button,
-  Alert,
-} from "@mui/material";
+import { Container, Typography, CircularProgress, Button, Alert, Paper, Box } from "@mui/material";
 
 const Payment = () => {
   const location = useLocation();
@@ -14,7 +8,6 @@ const Payment = () => {
   const { propertyId, userId, amount } = location.state || {};
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
 
   useEffect(() => {
@@ -49,26 +42,24 @@ const Payment = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("User not authenticated. Please log in.");
 
-      // Create a payment order
       const response = await fetch("http://localhost:9090/api/payment/create-order", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ amount: amount, userId: userId, propertyId: propertyId }),
+        body: JSON.stringify({ amount, userId, propertyId }),
       });
 
       if (!response.ok) throw new Error("Failed to create payment order.");
       const order = await response.json();
 
-      // Open Razorpay payment modal
       const options = {
-        key: "rzp_test_rFwjZbQ2DbFLZt", // Replace with actual Razorpay Key ID
+        key: "rzp_test_rFwjZbQ2DbFLZt", // Replace with your Razorpay key
         amount: order.amount,
         currency: order.currency,
         name: "Real Estate Platform",
-        description: `Payment for property: ${propertyId}`,
+        description: `Payment for property ID: ${propertyId}`,
         order_id: order.id,
         handler: async function (response) {
           try {
@@ -82,14 +73,21 @@ const Payment = () => {
             });
 
             if (!callbackResponse.ok) throw new Error("Failed to process payment callback.");
-            setSuccessMessage(`Payment successful! Payment ID: ${response.razorpay_payment_id}`);
+
+            // Navigate to the success page with payment details
+            navigate("/success", {
+              state: {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            });
           } catch (error) {
-            console.error("Payment callback error:", error);
             setError("Failed to process payment callback.");
           }
         },
         prefill: {
-          name: "John Doe", // Replace with actual user details
+          name: "Rohan Das",
           email: "john.doe@example.com",
           contact: "9999999999",
         },
@@ -101,7 +99,6 @@ const Payment = () => {
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (error) {
-      console.error("Payment error:", error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -110,46 +107,46 @@ const Payment = () => {
 
   if (!propertyId || !userId || !amount) {
     return (
-      <Container sx={{ py: 4 }}>
-        <Typography variant="h6" color="error">
-          Invalid payment details. Please go back and try again.
-        </Typography>
-        <Button variant="contained" color="primary" onClick={() => navigate("/")} sx={{ mt: 2 }}>
-          Back to Home
-        </Button>
+      <Container maxWidth="sm" sx={{ mt: 10, textAlign: "center" }}>
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+          <Typography variant="h6" color="error">
+            Invalid payment details. Please go back and try again.
+          </Typography>
+          <Button variant="contained" color="primary" onClick={() => navigate("/")} sx={{ mt: 2 }}>
+            Back to Home
+          </Button>
+        </Paper>
       </Container>
     );
   }
 
   return (
-    <Container sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Complete Payment
-      </Typography>
-      <Typography variant="body1" gutterBottom>
-        You are about to pay ₹{amount} for property ID: {propertyId}.
-      </Typography>
+    <Container maxWidth="sm" sx={{ mt: 10, textAlign: "center" }}>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Complete Your Payment
+        </Typography>
+        <Typography variant="body1" gutterBottom>
+          You are about to pay <strong>₹{amount}</strong> for Property ID: <strong>{propertyId}</strong>
+        </Typography>
 
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handlePayment}
-        disabled={loading || !razorpayLoaded}
-        sx={{ mt: 2 }}
-      >
-        {loading ? "Processing..." : "Pay Now"}
-      </Button>
+        <Box sx={{ mt: 3 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handlePayment}
+            disabled={loading || !razorpayLoaded}
+          >
+            {loading ? <CircularProgress size={24} /> : "Proceed to Pay"}
+          </Button>
+        </Box>
 
-      {successMessage && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          {successMessage}
-        </Alert>
-      )}
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mt: 3 }}>
+            {error}
+          </Alert>  
+        )}
+      </Paper>
     </Container>
   );
 };

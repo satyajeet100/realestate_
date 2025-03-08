@@ -23,7 +23,7 @@ const loginUser = async (email, password) => {
   }
 };
 
-const Login = () => {
+const Login = ({ onLogin }) => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
@@ -68,6 +68,7 @@ const Login = () => {
       };
 
       navigate(roleRedirects[user.role] || "/");
+      onLogin(user); // Notify the parent component about the login
     }
 
     setLoading(false);

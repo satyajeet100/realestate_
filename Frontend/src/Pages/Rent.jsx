@@ -1,185 +1,236 @@
-import React, { useState, useEffect } from "react";
-import { Box, Typography, Card, CardContent, Button, Snackbar, Alert, TextField, Grid } from "@mui/material";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Button,
+  CircularProgress,
+  IconButton,
+  Box,
+  TextField,
+  Paper,
+} from "@mui/material";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 
-const Rent = () => {
+const PropertyCard = ({ property, wishlist, handleAddToWishlist, handleViewDetails }) => {
+  const isInWishlist = wishlist.some((item) => item.id === property.id);
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 2,
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+        transition: "transform 0.3s ease, box-shadow 0.3s ease",
+        "&:hover": {
+          transform: "scale(1.03)",
+          boxShadow: "0 6px 16px rgba(0, 0, 0, 0.2)",
+        },
+      }}
+    >
+      <CardMedia
+        component="img"
+        height="250"
+        image={property.imageUrls?.[0] || "default.jpg"}
+        alt={property.propertyTitle}
+        sx={{ objectFit: "cover" }}
+      />
+      <IconButton
+        onClick={() => handleAddToWishlist(property)}
+        sx={{ position: "absolute", top: 8, right: 8 }}
+        aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+      >
+        {isInWishlist ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+      </IconButton>
+      <CardContent>
+        <Typography variant="h6" fontWeight="bold">
+          {property.propertyTitle}
+        </Typography>
+        <Typography variant="body1" color="primary" mt={1}>
+          ₹{property.price.toLocaleString("en-IN")} | {property.discountPercent}% Off
+        </Typography>
+        <Box display="flex" gap={2} mt={2}>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => handleViewDetails(property.id)}
+            aria-label="View property details"
+          >
+            View Details
+          </Button>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
+const useFetchProperties = (type) => {
   const [properties, setProperties] = useState([]);
-  const [filteredProperties, setFilteredProperties] = useState([]);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const [propertyNameSearch, setPropertyNameSearch] = useState("");
-  const [priceSearch, setPriceSearch] = useState("");
-  const [locationSearch, setLocationSearch] = useState("");
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
+  const fetchProperties = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("User not authenticated. Please log in.");
+
+      const response = await fetch(`http://localhost:9090/api/properties/type/${type}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+      const data = await response.json();
+      setProperties(data);
+    } catch (error) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [type]);
 
   useEffect(() => {
-    if (!token) {
-      setSnackbarMessage("Please log in to view properties.");
-      setSnackbarSeverity("error");
-      setSnackbarOpen(true);
-      return;
-    }
-
-    const fetchProperties = async () => {
-      try {
-        const response = await fetch("http://localhost:9090/api/properties/type/RENT", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch properties");
-        }
-
-        const data = await response.json();
-        if (data.error) {
-          setSnackbarMessage(data.message || "Error fetching properties.");
-          setSnackbarSeverity("error");
-          setSnackbarOpen(true);
-        } else {
-          setProperties(data);
-          setFilteredProperties(data);
-        }
-      } catch (error) {
-        console.error(error);
-        setSnackbarMessage("An error occurred while fetching properties.");
-        setSnackbarSeverity("error");
-        setSnackbarOpen(true);
-      }
-    };
-
     fetchProperties();
-  }, [token]);
+  }, [fetchProperties]);
 
-  const handleSearchChange = () => {
-    const filtered = properties.filter((property) => {
-      return (
-        property.propertyTitle.toLowerCase().includes(propertyNameSearch.toLowerCase()) &&
-        property.price.toString().includes(priceSearch) &&
-        property.location.toLowerCase().includes(locationSearch.toLowerCase())
-      );
+  return { properties, error, loading, fetchProperties };
+};
+
+const Rent = () => {
+  const [filteredProperties, setFilteredProperties] = useState([]);
+  const [wishlist, setWishlist] = useState(() => {
+    const savedWishlist = localStorage.getItem("wishlist");
+    return savedWishlist ? JSON.parse(savedWishlist) : [];
+  });
+  const [searchParams, setSearchParams] = useState({
+    location: "",
+    price: "",
+    size: "",
+    category: "",
+  });
+
+  const { properties, error, loading } = useFetchProperties("RENT");
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    setSearchParams({
+      location: queryParams.get("location") || "",
+      price: queryParams.get("price") || "",
+      size: queryParams.get("size") || "",
+      category: queryParams.get("category") || "",
     });
+  }, [location.search]);
 
+  useEffect(() => {
+    applyFilters();
+  }, [searchParams, properties]);
+
+  const applyFilters = () => {
+    let filtered = properties.filter(
+      (property) =>
+        (!searchParams.location ||
+          property.location?.toLowerCase().includes(searchParams.location.toLowerCase())) &&
+        (!searchParams.price || property.price <= Number(searchParams.price)) &&
+        (!searchParams.size || property.squareFeet >= Number(searchParams.size)) &&
+        (!searchParams.category ||
+          property.propertyCategory?.toLowerCase().includes(searchParams.category.toLowerCase()))
+    );
     setFilteredProperties(filtered);
   };
 
-  useEffect(() => {
-    handleSearchChange();
-  }, [propertyNameSearch, priceSearch, locationSearch]);
+  const handleAddToWishlist = (property) => {
+    setWishlist((prevWishlist) => {
+      const updatedWishlist = prevWishlist.some((item) => item.id === property.id)
+        ? prevWishlist.filter((item) => item.id !== property.id)
+        : [...prevWishlist, property];
+      localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
+      return updatedWishlist;
+    });
+  };
 
-  const handleSnackbarClose = () => setSnackbarOpen(false);
+  const handleViewDetails = (propertyId) => navigate(`/property/${propertyId}`);
+
+  const handleSearchChange = (event) => {
+    setSearchParams((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
 
   return (
-    <Box sx={{ padding: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Available Properties for Rent
-      </Typography>
-
-      <Box sx={{ display: "flex", gap: 2, marginBottom: 2 }}>
-        <TextField
-          label="Search by Property Name"
-          fullWidth
-          value={propertyNameSearch}
-          onChange={(e) => setPropertyNameSearch(e.target.value)}
-        />
-        <TextField
-          label="Search by Price"
-          fullWidth
-          value={priceSearch}
-          onChange={(e) => setPriceSearch(e.target.value)}
-        />
-        <TextField
-          label="Search by Location"
-          fullWidth
-          value={locationSearch}
-          onChange={(e) => setLocationSearch(e.target.value)}
-        />
+    <Container sx={{ mt: 8, mb: 4 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Typography variant="h4" fontWeight="bold">
+          Available Properties for Rent
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => navigate("/wishlist")}
+          startIcon={<FavoriteIcon />}
+          aria-label="Go to wishlist"
+        >
+          Wishlist ({wishlist.length})
+        </Button>
       </Box>
 
-      {filteredProperties.length > 0 ? (
-        <Grid container spacing={2}>
-          {filteredProperties.map((property) => (
-            <Grid item xs={12} sm={6} md={3} key={property.id}>
-              <Card
-                sx={{
-                  maxWidth: 345,
-                  transition: "transform 0.3s ease, box-shadow 0.3s ease",
-                  "&:hover": { transform: "scale(1.05)", boxShadow: 6 },
-                  borderRadius: 2,
-                  border: "1px solid #ddd",
-                }}
-              >
-                <CardContent>
-                  {property.imageUrls && property.imageUrls[0] && (
-                    <img
-                      src={property.imageUrls[0]}
-                      alt={property.propertyTitle}
-                      style={{
-                        width: "100%",
-                        height: "200px",
-                        objectFit: "cover",
-                        marginBottom: 10,
-                        border: "2px solid #ddd",
-                        borderRadius: "8px",
-                      }}
-                    />
-                  )}
-                  <Typography variant="h6">{property.propertyTitle}</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {property.location}
-                  </Typography>
-                  <Typography variant="body1" color="textPrimary">
-                    Price: ₹{property.price.toLocaleString('en-IN')}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Discount: {property.discountPercent}%
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Discounted Price: ₹{property.discountedPrice.toLocaleString('en-IN')}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {property.description}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Bedrooms: {property.numberOfBedrooms}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Bathrooms: {property.numberOfBathrooms}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Area: {property.squareFeet} sq ft
-                  </Typography>
-                  <Link to={`/viewdetails/${property.id}`}>
-                    <Button variant="contained" color="primary" sx={{ marginTop: 2 }}>
-                      View Details
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : (
-        <Typography variant="h6" color="textSecondary">
-          No properties found matching the search criteria.
-        </Typography>
-      )}
+      <Paper elevation={3} sx={{ p: 3, mb: 4, borderRadius: 2 }}>
+        <Box display="flex" gap={2} flexWrap="wrap">
+          <TextField
+            label="Location"
+            name="location"
+            value={searchParams.location}
+            onChange={handleSearchChange}
+            placeholder="Enter location"
+            sx={{ flex: 1 }}
+          />
+          <TextField
+            label="Price"
+            type="number"
+            name="price"
+            value={searchParams.price}
+            onChange={handleSearchChange}
+            sx={{ flex: 1 }}
+          />
+          <TextField
+            label="Min Size (sq ft)"
+            type="number"
+            name="size"
+            value={searchParams.size}
+            onChange={handleSearchChange}
+            sx={{ flex: 1 }}
+          />
+          <TextField
+            label="Category"
+            name="category"
+            value={searchParams.category}
+            onChange={handleSearchChange}
+            placeholder="Apartment, Villa, etc."
+            sx={{ flex: 1 }}
+          />
+        </Box>
+      </Paper>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: "100%" }}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
-    </Box>
+      {loading && <CircularProgress />}
+      {error && <Typography color="error">{error}</Typography>}
+
+      <Grid container spacing={4}>
+        {filteredProperties.map((property) => (
+          <Grid item key={property.id} xs={12} sm={6} md={4}>
+            <PropertyCard
+              property={property}
+              wishlist={wishlist}
+              handleAddToWishlist={handleAddToWishlist}
+              handleViewDetails={handleViewDetails}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </Container>
   );
 };
 

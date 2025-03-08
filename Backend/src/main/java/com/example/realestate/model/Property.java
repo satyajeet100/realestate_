@@ -3,6 +3,8 @@ package com.example.realestate.model;
 import jakarta.persistence.*;
 import java.util.List;
 
+import com.example.realestate.user.domain.PropertyStatus;
+
 @Entity
 @Table(name = "properties")
 public class Property {
@@ -31,11 +33,16 @@ public class Property {
     @ElementCollection
     private List<String> imageUrls;
 
+    // ✅ Add status field with enum
+    @Enumerated(EnumType.STRING)
+    private PropertyStatus status;
+
     public Property() {}
 
     public Property(Long id, User seller, String propertyTitle, String description, String location, Double price,
                     Double discountedPrice, Double discountPercent, String propertyType, List<String> imageUrls,
-                    String propertyCategory, int numberOfBedrooms, int numberOfBathrooms, Double squareFeet) {
+                    String propertyCategory, int numberOfBedrooms, int numberOfBathrooms, Double squareFeet,
+                    PropertyStatus status) {
         this.id = id;
         this.seller = seller;
         this.propertyTitle = propertyTitle;
@@ -50,6 +57,7 @@ public class Property {
         this.numberOfBedrooms = numberOfBedrooms;
         this.numberOfBathrooms = numberOfBathrooms;
         this.squareFeet = squareFeet;
+        this.status = status;
     }
 
     // Getters and Setters
@@ -163,5 +171,13 @@ public class Property {
 
     public void setSquareFeet(Double squareFeet) {
         this.squareFeet = squareFeet;
+    }
+
+    public PropertyStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PropertyStatus status) {
+        this.status = status;
     }
 }

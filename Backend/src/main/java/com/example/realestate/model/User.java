@@ -105,6 +105,7 @@ public class User {
     public void setRole(UserRole role) {
         this.role = role;
     }
+   
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -117,4 +118,6 @@ public class User {
     public void setUpdatedAt(LocalDateTime updatedAt) { // Added this method
         this.updatedAt = updatedAt;
     }
+
+	
 }

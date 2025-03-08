@@ -36,11 +36,13 @@ public class AppConfig implements WebMvcConfigurer {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Stateless authentication
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers("/auth/register", "/auth/login").permitAll() // Public authentication endpoints
-                .requestMatchers("/api/properties/type/BUY").permitAll() // Allow public access to Buy properties
-                .requestMatchers("/property/**").permitAll() // Allow access to property listings
+                .requestMatchers("/api/properties/type/BUY", "/api/properties/type/RENT").permitAll() // Allow public access to Buy/Rent properties
+                .requestMatchers("/property/**", "/users", "/api/properties/all", "/users/*/role").permitAll() // Allow access to property listings and user roles
                 .requestMatchers("/uploads/**").permitAll() // Allow access to uploaded files
                 .requestMatchers("/ratings/**").permitAll() // Allow access to ratings endpoints
-                .requestMatchers("/api/properties/add/**", "/api/properties/update/**", "/api/properties/delete/**").authenticated() // Secure property CRUD
+
+                
+
                 .anyRequest().authenticated() // Secure all other endpoints
             )
             .addFilterBefore(jwtFilter, BasicAuthenticationFilter.class) // Register JwtFilter
@@ -79,6 +81,6 @@ public class AppConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Configure static resource handler for serving uploaded files
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:D:/Excelr_Project/realestate_/Backend/uploads/");
+                .addResourceLocations("file:D:\\Excelr_Project\\RealEstate\\Backend\\uploads");
     }
 }
